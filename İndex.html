@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yaşlılar İçin Sesli Rehberlik Sitesi</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z'/%3E%3Cpath d='M19 10v2a7 7 0 0 1-14 0v-2'/%3E%3Cline x1='12' x2='12' y1='19' y2='22'/%3E%3C/svg%3E" type="image/svg+xml">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+        
+        html {
+            font-size: 100%;
+            transition: font-size 0.2s ease;
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f0f4f8;
+            color: #1e293b;
+            transition: background-color 0.3s, color 0.3s;
+            touch-action: manipulation;
+        }
+
+        /* Yüksek Kontrast Modu (Görme güçlüğü çekenler için) */
+        body.high-contrast {
+            background-color: #000000 !important;
+            color: #ffff00 !important;
+        }
+        body.high-contrast .bg-white,
+        body.high-contrast nav,
+        body.high-contrast main,
+        body.high-contrast #message-box,
+        body.high-contrast .card-box {
+            background-color: #121212 !important;
+            color: #ffffff !important;
+            border: 3px solid #ffff00 !important;
+        }
+        body.high-contrast button {
+            border: 3px solid #ffff00 !important;
+            background-color: #000000 !important;
+            color: #ffff00 !important;
+        }
+        body.high-contrast input, 
+        body.high-contrast textarea {
+            background-color: #1e1e1e !important;
+            color: #ffffff !important;
+            border: 2px solid #ffff00 !important;
+        }
+
+        .page-content {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .page-content.active {
+            display: block;
+            opacity: 1;
+        }
+
+        .nav-button {
+            transition: all 0.2s ease;
+            min-height: 56px;
+        }
+        .nav-button.active-tab {
+            background-color: #1d4ed8 !important;
+            box-shadow: 0 0 0 4px #93c5fd;
+            transform: scale(1.02);
+        }
+
+        /* Floating Sesli Rehber Butonu */
+        .voice-button {
+            position: fixed;
+            bottom: 1.5rem;
+            left: 1.5rem;
+            width: 72px;
+            height: 72px;
+            z-index: 100;
+            transition: all 0.2s;
+        }
+        .voice-button.speaking {
+            animation: pulse-speak 1.2s infinite;
+        }
+        @keyframes pulse-speak {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            50% { transform: scale(1.1); box-shadow: 0 0 0 18px rgba(59, 130, 246, 0); }
+        }
+
+        /* Mesaj Kutusu Buton & Modal */
+        #message-box-btn {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            z-index: 100;
+            width: 72px;
+            height: 72px;
+        }
+        #message-box {
+            position: fixed;
+            bottom: 6.5rem;
+            right: 1.5rem;
+            z-index: 99;
+            width: calc(100% - 3rem);
+            max-width: 440px;
+        }
+
+        .voice-input-container {
+            position: relative;
+        }
+        .voice-input-btn {
+            position: absolute;
+            top: 2.75rem;
+            left: 12px;
+            z-index: 10;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .voice-input-btn.listening {
+            animation: pulse-listen 1.2s infinite;
+            background-color: #ef4444 !important;
+        }
+        @keyframes pulse-listen {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+        }
+    </style>
+</head>
+<body class="p-3 md:p-8 min-h-screen flex flex-col justify-between">
+
+    <div>
+        <!-- Erişilebilirlik Barı (Tüm Cihazlara Uyumlu) -->
+        <div class="max-w-4xl mx-auto mb-6 bg-white p-4 rounded-2xl shadow-md border-2 border-blue-100 flex flex-wrap items-center justify-between gap-4 card-box">
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="font-bold text-gray-700 text-lg md:text-xl">Yazı Boyutu:</span>
+                <button id="font-increase" class="bg-blue-100 text-blue-900 font-black px-4 py-3 rounded-xl text-xl hover:bg-blue-200 active:bg-blue-300 min-w-[50px]" title="Yazıları Büyüt">A+</button>
+                <button id="font-decrease" class="bg-blue-100 text-blue-900 font-black px-4 py-3 rounded-xl text-xl hover:bg-blue-200 active:bg-blue-300 min-w-[50px]" title="Yazıları Küçült">A-</button>
+                <button id="font-reset" class="bg-gray-200 text-gray-800 font-bold px-4 py-3 rounded-xl text-lg hover:bg-gray-300 active:bg-gray-400" title="Varsayılana Dön">Sıfırla</button>
+            </div>
+            <div class="flex items-center gap-3 flex-wrap">
+                <button id="start-tour-btn" onclick="startMiniTour()" class="bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold px-5 py-3 rounded-xl text-lg flex items-center gap-2 shadow-md border-2 border-amber-300 transition-all cursor-pointer">
+                    <span>🎓</span> Site Turunu Başlat
+                </button>
+                <button id="toggle-contrast" class="bg-slate-900 text-yellow-300 font-bold px-5 py-3 rounded-xl text-lg hover:bg-slate-800 active:bg-black flex items-center gap-2 shadow-sm cursor-pointer">
+                    <span>👁️</span> Yüksek Kontrast
+                </button>
+            </div>
+        </div>
+
+        <!-- Ana Başlık -->
+        <header class="max-w-4xl mx-auto text-center mb-6 md:mb-8">
+            <h1 class="text-3xl md:text-5xl font-black text-blue-900 tracking-tight mb-3">Kolay İnternet & Sesli Rehber</h1>
+            <p class="text-lg md:text-2xl text-gray-600 font-medium leading-relaxed">Gözlerinizi yormayan büyük butonlar ve sesli anlatım ile interneti kolayca kullanın.</p>
+        </header>
+
+        <!-- Menü Navigasyon -->
+        <nav class="sticky top-2 z-40 bg-white shadow-xl rounded-2xl p-3 flex flex-wrap justify-center items-center gap-3 max-w-4xl mx-auto mb-8 border-2 border-blue-200 card-box">
+            <button id="btn-anasayfa" onclick="changePage('anasayfa')" class="nav-button active-tab bg-blue-600 text-white font-bold py-4 px-6 rounded-xl shadow-md hover:bg-blue-700 text-xl md:text-2xl flex-1 min-w-[140px] text-center cursor-pointer">
+                🏠 Anasayfa
+            </button>
+            <button id="btn-hakkinda" onclick="changePage('hakkinda')" class="nav-button bg-blue-600 text-white font-bold py-4 px-6 rounded-xl shadow-md hover:bg-blue-700 text-xl md:text-2xl flex-1 min-w-[140px] text-center cursor-pointer">
+                ℹ️ Hakkında
+            </button>
+            <button id="btn-iletisim" onclick="changePage('iletisim')" class="nav-button bg-blue-600 text-white font-bold py-4 px-6 rounded-xl shadow-md hover:bg-blue-700 text-xl md:text-2xl flex-1 min-w-[140px] text-center cursor-pointer">
+                📞 İletişim & Harita
+            </button>
+        </nav>
+
+        <!-- Ana İçerik Alanı -->
+        <main class="bg-white rounded-3xl shadow-2xl p-6 md:p-10 max-w-4xl mx-auto border-2 border-gray-100 card-box">
+
+            <!-- Anasayfa Bölümü -->
+            <section id="anasayfa" class="page-content active">
+                <h2 class="text-3xl md:text-4xl font-extrabold text-blue-900 mb-6 flex items-center gap-3">
+                    <span>👋</span> Hoş Geldiniz!
+                </h2>
+                <p class="text-xl md:text-2xl text-gray-800 leading-relaxed mb-6">
+                    Bu internet sitesi, gözlerinizi yormadan ve zorlanmadan bilgiye ulaşabilmeniz için özel olarak tasarlandı.
+                    <br><br>
+                    Sol alttaki <strong>Mavi Ses Butonuna</strong> tıklayarak veya ekrandaki metinlerin üzerine gelerek sesli rehberimizi dinleyebilirsiniz.
+                </p>
+                <div class="mt-8 text-center">
+                    <img src="https://placehold.co/700x350/2563eb/ffffff?text=Kolay+Kullan%C4%B1ml%C4%B1+Sesli+Rehber" alt="Ana Sayfa Görseli" class="rounded-2xl shadow-md max-w-full h-auto mx-auto border-4 border-blue-100">
+                </div>
+            </section>
+
+            <!-- Hakkında Bölümü -->
+            <section id="hakkinda" class="page-content">
+                <h2 class="text-3xl md:text-4xl font-extrabold text-blue-900 mb-6 flex items-center gap-3">
+                    <span>📖</span> Hakkımızda
+                </h2>
+                <p class="text-xl md:text-2xl text-gray-800 leading-relaxed mb-6">
+                    Amacımız, teknolojinin karmaşıklığını ortadan kaldırarak dijital dünyayı herkes için erişilebilir kılmaktır.
+                    <br><br>
+                    Büyük yazılar, net renkler ve sesli okuma yardımcısı ile internette güvenle ve tek başınıza vakit geçirebilirsiniz.
+                </p>
+                <div class="mt-8 text-center">
+                    <img src="https://placehold.co/700x350/10b981/ffffff?text=Eri%C5%9Filebilir+Teknoloji" alt="Hakkımızda Görseli" class="rounded-2xl shadow-md max-w-full h-auto mx-auto border-4 border-emerald-100">
+                </div>
+            </section>
+
+            <!-- İletişim Bölümü ve İnteraktif Harita -->
+            <section id="iletisim" class="page-content">
+                <h2 class="text-3xl md:text-4xl font-extrabold text-blue-900 mb-6 flex items-center gap-3">
+                    <span>✉️</span> İletişim ve Adresimiz
+                </h2>
+                <p class="text-xl md:text-2xl text-gray-800 leading-relaxed mb-8">
+                    Bize soru sormak veya mesaj bırakmak için aşağıdaki formu doldurabilir ya da haritadaki konumumuzu inceleyebilirsiniz.
+                </p>
+
+                <!-- İletişim Bilgileri Kartları -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                    <div class="bg-blue-50 p-6 rounded-2xl border-2 border-blue-200 card-box">
+                        <h3 class="font-bold text-2xl text-blue-900 mb-2">📍 Adresimiz</h3>
+                        <p class="text-xl text-gray-700">Atatürk Bulvarı No: 123, Şanlıurfa / Türkiye</p>
+                    </div>
+                    <div class="bg-emerald-50 p-6 rounded-2xl border-2 border-emerald-200 card-box">
+                        <h3 class="font-bold text-2xl text-emerald-900 mb-2">📞 Telefon & Destek</h3>
+                        <p class="text-xl text-gray-700">0 (850) 123 45 67 (Ücretsiz Danışma)</p>
+                    </div>
+                </div>
+
+                <!-- Google Harita Ekranı (KORUNAN HARİTA BÖLÜMÜ) -->
+                <div class="mb-10">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <span>🗺️</span> Konum Haritası
+                    </h3>
+                    <div class="w-full h-80 rounded-2xl overflow-hidden shadow-lg border-4 border-blue-200 bg-gray-100">
+                        <iframe 
+                            title="Harita Konumu"
+                            width="100%" 
+                            height="100%" 
+                            style="border:0;" 
+                            loading="lazy" 
+                            allowfullscreen
+                            src="https://maps.google.com/maps?q=37.1674,38.7955&z=14&output=embed">
+                        </iframe>
+                    </div>
+                </div>
+
+                <!-- İletişim Formu -->
+                <form id="contact-form" class="space-y-6 bg-gray-50 p-6 md:p-8 rounded-2xl border-2 border-gray-200 card-box">
+                    <h3 class="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Bize Mesaj Gönderin</h3>
+                    
+                    <div>
+                        <label for="name" class="block text-xl font-bold text-gray-800 mb-2">Adınız Soyadınız</label>
+                        <input type="text" id="name" required placeholder="Örn: Ahmet Yılmaz" class="w-full p-4 border-2 border-gray-300 rounded-xl text-xl focus:border-blue-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label for="phone" class="block text-xl font-bold text-gray-800 mb-2">Telefon Numaranız</label>
+                        <input type="tel" id="phone" required placeholder="05XX XXX XX XX" class="w-full p-4 border-2 border-gray-300 rounded-xl text-xl focus:border-blue-500 focus:outline-none">
+                    </div>
+
+                    <div class="voice-input-container">
+                        <label for="message" class="block text-xl font-bold text-gray-800 mb-2">Mesajınız</label>
+                        <button type="button" id="voice-input-contact" class="voice-input-btn bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 text-xl" title="Sesli Yazdır">
+                            🎤
+                        </button>
+                        <textarea id="message" rows="4" required class="w-full p-4 pl-16 border-2 border-gray-300 rounded-xl text-xl focus:border-blue-500 focus:outline-none" placeholder="Mesajınızı konuşarak veya yazarak girin..."></textarea>
+                    </div>
+
+                    <button type="submit" class="w-full bg-blue-600 text-white font-extrabold py-5 rounded-2xl shadow-xl hover:bg-blue-700 active:bg-blue-800 text-2xl transition-all">
+                        🚀 Mesajı Gönder
+                    </button>
+                </form>
+
+                <div id="contact-status" class="mt-4 p-4 text-center text-xl font-bold rounded-xl hidden"></div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Sabit Hızlı Mesaj Butonu ve Modalı -->
+    <button id="message-box-btn" onclick="toggleMessageBox()" title="Hızlı Mesaj Aç" class="rounded-full bg-amber-500 text-white flex items-center justify-center shadow-2xl hover:bg-amber-600 active:bg-amber-700 border-4 border-white text-3xl cursor-pointer">
+        ✉️
+    </button>
+
+    <div id="message-box" class="hidden bg-white p-6 rounded-3xl shadow-2xl border-4 border-amber-400 card-box">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-2xl font-bold text-gray-800">Hızlı Mesaj</h3>
+            <button onclick="toggleMessageBox()" class="text-gray-500 hover:text-gray-800 text-3xl font-bold p-1">✖</button>
+        </div>
+        <div class="voice-input-container mb-4">
+            <button type="button" id="voice-input-quick" class="voice-input-btn bg-amber-600 text-white rounded-full shadow-lg hover:bg-amber-700 text-xl" title="Konuşarak Yaz">
+                🎤
+            </button>
+            <textarea id="quick-message-text" rows="3" class="w-full p-4 pl-16 border-2 border-gray-300 rounded-xl text-xl focus:outline-none" placeholder="Kısaca yazın veya mikrofonla söyleyin..."></textarea>
+        </div>
+        <button onclick="sendQuickMessage()" class="w-full bg-amber-500 text-white font-bold py-4 rounded-xl shadow-md hover:bg-amber-600 active:bg-amber-700 text-xl">
+            Gönder
+        </button>
+        <div id="quick-status" class="mt-3 text-center text-lg font-semibold hidden"></div>
+    </div>
+
+    <!-- Sabit Sesli Rehber Aç/Kapat Butonu -->
+    <button id="voice-toggle-btn" onclick="toggleVoiceGuide()" title="Sesli Anlatımı Başlat / Durdur" class="voice-button rounded-full bg-blue-600 text-white flex items-center justify-center shadow-2xl border-4 border-white text-3xl cursor-pointer">
+        <span id="voice-icon">🔊</span>
+    </button>
+
+    <!-- Mini Site Turu Rehber Modalı -->
+    <div id="tour-overlay" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[150] flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl border-4 border-blue-500 text-center relative card-box animate-bounce-once">
+            <div class="text-6xl mb-3" id="tour-icon">🎓</div>
+            <div class="text-base font-extrabold text-blue-700 uppercase tracking-wider mb-2 bg-blue-100 py-1.5 px-4 rounded-full inline-block border border-blue-300" id="tour-step-badge">
+                ADIM 1 / 5
+            </div>
+            <h3 class="text-2xl md:text-3xl font-black text-gray-900 mb-3" id="tour-title">Hoş Geldiniz! Sesli Tur Başlıyor</h3>
+            <p class="text-xl md:text-2xl text-gray-800 leading-relaxed mb-8 bg-slate-50 p-4 rounded-2xl border border-slate-200" id="tour-desc">
+                Siteyi rahatça kullanabilmeniz için özellikleri tek tek sesli olarak anlatıyoruz.
+            </p>
+            
+            <div class="flex items-center justify-between gap-3 mb-3">
+                <button id="tour-prev-btn" onclick="prevTourStep()" class="bg-gray-200 hover:bg-gray-300 active:bg-gray-400 text-gray-800 font-bold px-4 py-4 rounded-2xl text-xl flex-1 cursor-pointer">
+                    ⬅️ Önceki
+                </button>
+                <button id="tour-next-btn" onclick="nextTourStep()" class="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-black px-5 py-4 rounded-2xl text-xl md:text-2xl flex-1 shadow-lg cursor-pointer">
+                    Devam Et ➡️
+                </button>
+            </div>
+
+            <button onclick="endMiniTour()" class="w-full bg-red-100 hover:bg-red-200 active:bg-red-300 text-red-700 font-extrabold py-3 px-4 rounded-2xl text-lg border-2 border-red-300 transition-colors cursor-pointer flex items-center justify-center gap-2">
+                <span>⏩</span> Turu Atla / Kapat
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const synth = window.speechSynthesis;
+        let isSpeaking = false;
+        let fontScalePercent = 100;
+
+        // Otomatik Tur Adımları
+        let currentTourStep = 0;
+        const tourSteps = [
+            {
+                title: "Yazı Boyutu ve Görünüm",
+                icon: "🔍",
+                desc: "Ekranın en üstündeki 'A+' ve 'A-' butonları ile yazıları büyütebilir, 'Yüksek Kontrast' butonu ile siyah-sarı belirgin renklere geçebilirsiniz.",
+                speak: "Birinci adım: Yazı Boyutu ve Görünüm. Ekranın en üstündeki butonlarla yazıları büyütebilir veya yüksek kontrast modunu açabilirsiniz. Devam etmek için Devam Et butonuna basabilirsiniz."
+            },
+            {
+                title: "Sayfa Gezinme Menüsü",
+                icon: "🧭",
+                desc: "Ortadaki mavi renkli büyük butonlara basarak Anasayfa, Hakkında ve İletişim sayfaları arasında kolayca geçiş yapabilirsiniz.",
+                speak: "İkinci adım: Sayfa Gezinme Menüsü. Mavi menü butonlarına basarak sayfalar arasında kolayca geçiş yapabilirsiniz."
+            },
+            {
+                title: "Sesli Rehber Butonu",
+                icon: "🔊",
+                desc: "Sol alt köşedeki mavi ses butonuna tıkladığınızda bulunduğunuz sayfanın tüm yazıları size sesli olarak okunur.",
+                speak: "Üçüncü adım: Sesli Rehber Butonu. Sol alttaki mavi ses butonuna basarak ekrandaki yazıları istediğiniz an tekrar dinleyebilirsiniz."
+            },
+            {
+                title: "Hızlı Mesaj Kutusu",
+                icon: "✉️",
+                desc: "Sağ alttaki sarı zarf butonuna tıklayarak bize doğrudan soru sorabilir veya hızlıca mesaj bırakabilirsiniz.",
+                speak: "Dördüncü adım: Hızlı Mesaj Kutusu. Sağ alttaki sarı butona 
